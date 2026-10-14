@@ -1,0 +1,370 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /*
+     * ==========================================================
+     * Helpers
+     * ==========================================================
+     */
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isContentOwner() {
+      return isSignedIn()
+        && request.auth.uid == 'ptQwoqUEzygvsm4BpfdvGruJnvj1';
+    }
+
+    function ownsExistingUserDocument() {
+      return isSignedIn()
+        && resource.data.userId == request.auth.uid;
+    }
+
+    function ownsIncomingUserDocument() {
+      return isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    function keepsUserDocumentOwnership() {
+      return ownsExistingUserDocument()
+        && ownsIncomingUserDocument();
+    }
+
+    function keepsOptionalMaqsadId() {
+      return (
+        ('maqsadId' in resource.data)
+        && ('maqsadId' in request.resource.data)
+        && request.resource.data.maqsadId == resource.data.maqsadId
+      ) || (
+        !('maqsadId' in resource.data)
+        && !('maqsadId' in request.resource.data)
+      );
+    }
+
+    function keepsOptionalChapterId() {
+      return (
+        ('chapterId' in resource.data)
+        && ('chapterId' in request.resource.data)
+        && request.resource.data.chapterId == resource.data.chapterId
+      ) || (
+        !('chapterId' in resource.data)
+        && !('chapterId' in request.resource.data)
+      );
+    }
+
+    function keepsOptionalSectionId() {
+      return (
+        ('sectionId' in resource.data)
+        && ('sectionId' in request.resource.data)
+        && request.resource.data.sectionId == resource.data.sectionId
+      ) || (
+        !('sectionId' in resource.data)
+        && !('sectionId' in request.resource.data)
+      );
+    }
+
+
+    /*
+     * ==========================================================
+     * Shared scientific content
+     *
+     * Current personal-app phase:
+     * - Owner only can read.
+     * - Owner only can create/update.
+     * - Hard delete is disabled.
+     * - Removal is handled through isArchived.
+     * ==========================================================
+     */
+
+    match /levels/{levelId} {
+      allow read: if isContentOwner();
+
+      allow create: if isContentOwner()
+        && request.resource.data.id == levelId;
+
+      allow update: if isContentOwner()
+        && request.resource.data.id == levelId
+        && request.resource.data.id == resource.data.id;
+
+      allow delete: if false;
+    }
+
+    match /sciences/{scienceId} {
+      allow read: if isContentOwner();
+
+      allow create: if isContentOwner()
+        && request.resource.data.id == scienceId;
+
+      allow update: if isContentOwner()
+        && request.resource.data.id == scienceId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.levelId == resource.data.levelId;
+
+      allow delete: if false;
+    }
+
+    match /matn/{matnId} {
+      allow read: if isContentOwner();
+
+      allow create: if isContentOwner()
+        && request.resource.data.id == matnId;
+
+      allow update: if isContentOwner()
+        && request.resource.data.id == matnId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.levelId == resource.data.levelId
+        && request.resource.data.scienceId == resource.data.scienceId;
+
+      allow delete: if false;
+    }
+
+    match /maqasid/{maqsadId} {
+      allow read: if isContentOwner();
+
+      allow create: if isContentOwner()
+        && request.resource.data.id == maqsadId;
+
+      allow update: if isContentOwner()
+        && request.resource.data.id == maqsadId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.matnId == resource.data.matnId;
+
+      allow delete: if false;
+    }
+
+    match /chapters/{chapterId} {
+      allow read: if isContentOwner();
+
+      allow create: if isContentOwner()
+        && request.resource.data.id == chapterId;
+
+      allow update: if isContentOwner()
+        && request.resource.data.id == chapterId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.matnId == resource.data.matnId
+        && keepsOptionalMaqsadId();
+
+      allow delete: if false;
+    }
+
+    match /sections/{sectionId} {
+      allow read: if isContentOwner();
+
+      allow create: if isContentOwner()
+        && request.resource.data.id == sectionId;
+
+      allow update: if isContentOwner()
+        && request.resource.data.id == sectionId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.matnId == resource.data.matnId
+        && keepsOptionalMaqsadId()
+        && keepsOptionalChapterId();
+
+      allow delete: if false;
+    }
+
+    match /passages/{passageId} {
+      allow read: if isContentOwner();
+
+      allow create: if isContentOwner()
+        && request.resource.data.id == passageId;
+
+      allow update: if isContentOwner()
+        && request.resource.data.id == passageId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.matnId == resource.data.matnId
+        && keepsOptionalMaqsadId()
+        && keepsOptionalChapterId()
+        && keepsOptionalSectionId();
+
+      allow delete: if false;
+    }
+
+    match /passageResources/{resourceId} {
+      allow read: if isContentOwner();
+
+      allow create: if isContentOwner()
+        && request.resource.data.id == resourceId;
+
+      allow update: if isContentOwner()
+        && request.resource.data.id == resourceId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.passageId == resource.data.passageId;
+
+      allow delete: if false;
+    }
+
+
+    /*
+     * ==========================================================
+     * User passage state
+     * ==========================================================
+     */
+
+    match /userPassageStates/{documentId} {
+      allow create: if ownsIncomingUserDocument()
+        && request.resource.data.id == documentId;
+
+      allow read, delete: if ownsExistingUserDocument();
+
+      allow update: if keepsUserDocumentOwnership()
+        && request.resource.data.id == documentId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.passageId == resource.data.passageId
+        && request.resource.data.matnId == resource.data.matnId;
+    }
+
+
+    /*
+     * ==========================================================
+     * Active passages
+     * ==========================================================
+     */
+
+    match /userActivePassages/{documentId} {
+      allow create: if ownsIncomingUserDocument();
+
+      allow read, delete: if ownsExistingUserDocument();
+
+      allow update: if keepsUserDocumentOwnership();
+    }
+
+
+    /*
+     * ==========================================================
+     * Daily repetitions
+     * ==========================================================
+     */
+
+    match /dailyRepetitions/{documentId} {
+      allow create: if ownsIncomingUserDocument();
+
+      allow read, delete: if ownsExistingUserDocument();
+
+      allow update: if keepsUserDocumentOwnership();
+    }
+
+
+    /*
+     * ==========================================================
+     * Passage aggregate stats
+     * ==========================================================
+     */
+
+    match /userPassageStats/{documentId} {
+      allow create: if ownsIncomingUserDocument();
+
+      allow read, delete: if ownsExistingUserDocument();
+
+      allow update: if keepsUserDocumentOwnership();
+    }
+
+
+    /*
+     * ==========================================================
+     * Matn progress
+     * ==========================================================
+     */
+
+    match /userMatnProgress/{documentId} {
+      allow create: if ownsIncomingUserDocument()
+        && request.resource.data.id == documentId;
+
+      allow read, delete: if ownsExistingUserDocument();
+
+      allow update: if keepsUserDocumentOwnership()
+        && request.resource.data.id == documentId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.matnId == resource.data.matnId;
+    }
+
+
+    /*
+     * ==========================================================
+     * Review groups
+     * ==========================================================
+     */
+
+    match /reviewGroups/{documentId} {
+      allow create: if ownsIncomingUserDocument();
+
+      allow read, delete: if ownsExistingUserDocument();
+
+      allow update: if keepsUserDocumentOwnership()
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.matnId == resource.data.matnId;
+    }
+
+
+    /*
+     * ==========================================================
+     * Review records
+     * ==========================================================
+     */
+
+    match /reviewRecords/{documentId} {
+      allow create: if ownsIncomingUserDocument();
+
+      allow read, delete: if ownsExistingUserDocument();
+
+      allow update: if keepsUserDocumentOwnership();
+    }
+
+
+    /*
+     * ==========================================================
+     * Repair records
+     * ==========================================================
+     */
+
+    match /repairRecords/{documentId} {
+      allow create: if ownsIncomingUserDocument();
+
+      allow read, delete: if ownsExistingUserDocument();
+
+      allow update: if keepsUserDocumentOwnership();
+    }
+
+
+    /*
+     * ==========================================================
+     * User settings
+     *
+     * Exactly one document per user:
+     * userSettings/{uid}
+     * ==========================================================
+     */
+
+    match /userSettings/{userId} {
+      allow create: if isSignedIn()
+        && userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+
+      allow read: if isSignedIn()
+        && userId == request.auth.uid;
+
+      allow update: if isSignedIn()
+        && userId == request.auth.uid
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+
+      allow delete: if isSignedIn()
+        && userId == request.auth.uid
+        && resource.data.userId == request.auth.uid;
+    }
+
+
+    /*
+     * ==========================================================
+     * Default deny
+     * ==========================================================
+     */
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

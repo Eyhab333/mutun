@@ -1,0 +1,8 @@
+allowBuilds:
+  '@firebase/util': true
+  protobufjs: true
+  sharp: false
+  unrs-resolver: false
+
+patchedDependencies:
+  '@dnd-kit/react@0.5.0': patches/@dnd-kit__react@0.5.0.patch

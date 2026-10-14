@@ -1,0 +1,57 @@
+diff --git a/index.cjs b/index.cjs
+--- a/index.cjs
++++ b/index.cjs
+@@ -189,14 +189,20 @@ function DragDropProvider(_a2) {
+ }
+ function useStableInstance(create) {
+   const ref = react.useRef(null);
++  const cleanupVersion = react.useRef(0);
+   if (!ref.current) {
+     ref.current = create();
+   }
+-  react.useInsertionEffect(() => {
++  react.useEffect(() => {
++    const version = ++cleanupVersion.current;
+     return () => {
+-      var _a2;
+-      return (_a2 = ref.current) == null ? void 0 : _a2.destroy();
++      queueMicrotask(() => {
++        var _a2;
++        if (cleanupVersion.current === version) {
++          return (_a2 = ref.current) == null ? void 0 : _a2.destroy();
++        }
++      });
+     };
+   }, []);
+   return ref.current;
+ }
+diff --git a/index.js b/index.js
+--- a/index.js
++++ b/index.js
+@@ -1,1 +1,1 @@
+-import { createContext, memo, forwardRef, useState, useRef, useMemo, startTransition, useImperativeHandle, useEffect, useInsertionEffect, useContext, useCallback, createElement } from 'react';
++import { createContext, memo, forwardRef, useState, useRef, useMemo, startTransition, useImperativeHandle, useEffect, useContext, useCallback, createElement } from 'react';
+@@ -188,14 +188,20 @@ function DragDropProvider(_a2) {
+ }
+ function useStableInstance(create) {
+   const ref = useRef(null);
++  const cleanupVersion = useRef(0);
+   if (!ref.current) {
+     ref.current = create();
+   }
+-  useInsertionEffect(() => {
++  useEffect(() => {
++    const version = ++cleanupVersion.current;
+     return () => {
+-      var _a2;
+-      return (_a2 = ref.current) == null ? void 0 : _a2.destroy();
++      queueMicrotask(() => {
++        var _a2;
++        if (cleanupVersion.current === version) {
++          return (_a2 = ref.current) == null ? void 0 : _a2.destroy();
++        }
++      });
+     };
+   }, []);
+   return ref.current;
+ }
