@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>المتون — دون اتصال</title>
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body {
+        min-height: 100svh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+        background: #ffffff;
+        color: #252525;
+        font-family: Tahoma, Arial, sans-serif;
+      }
+      main { width: min(100%, 28rem); text-align: center; }
+      h1 { margin: 0 0 0.75rem; font-size: 1.25rem; }
+      p { margin: 0; color: #666666; line-height: 1.8; }
+      button {
+        margin-top: 1.5rem;
+        border: 0;
+        border-radius: 0.625rem;
+        padding: 0.65rem 1rem;
+        background: #252525;
+        color: #ffffff;
+        font: inherit;
+        cursor: pointer;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { background: #252525; color: #fafafa; }
+        p { color: #b3b3b3; }
+        button { background: #fafafa; color: #252525; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>لا يوجد اتصال بالإنترنت</h1>
+      <p>تحقّق من الاتصال ثم أعد المحاولة. ستظهر بياناتك عند عودة الشبكة.</p>
+      <button type="button" onclick="window.location.reload()">إعادة المحاولة</button>
+    </main>
+  </body>
+</html>

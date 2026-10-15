@@ -10,7 +10,7 @@ import {
   Pencil,
   Power,
   type LucideIcon,
-  Youtube,
+  VideoIcon,
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/react/sortable";
 
@@ -34,7 +34,7 @@ const resourceTypeDetails: Record<
   { label: string; Icon: LucideIcon }
 > = {
   NOTE: { label: "ملاحظة", Icon: FileText },
-  YOUTUBE: { label: "YouTube", Icon: Youtube },
+  YOUTUBE: { label: "YouTube", Icon: VideoIcon },
   IMAGE: { label: "صورة", Icon: Image },
   AUDIO: { label: "صوت", Icon: AudioLines },
 };

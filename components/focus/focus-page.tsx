@@ -45,7 +45,7 @@ type ReadyFocusPassage = Extract<FocusPassageLoadResult, { kind: "ready" }>;
 function isSameSession(
   first: FocusCounterDraft | null,
   second: FocusCounterDraft
-) {
+): first is FocusCounterDraft {
   return (
     first !== null &&
     first.userId === second.userId &&
@@ -128,9 +128,7 @@ export function FocusPage({ passageId }: { passageId: string }) {
   const focusPassageRef = React.useRef<ReadyFocusPassage | null>(null);
   const syncInFlightRef = React.useRef(false);
   const syncRequestedWhileInFlightRef = React.useRef(false);
-  const syncTimerRef = React.useRef<ReturnType<typeof window.setTimeout> | null>(
-    null
-  );
+  const syncTimerRef = React.useRef<number | null>(null);
   const syncNowRef = React.useRef<() => Promise<void>>(async () => undefined);
   const loadRequestRef = React.useRef(0);
 
@@ -181,7 +179,7 @@ export function FocusPage({ passageId }: { passageId: string }) {
       const current = counterRef.current;
 
       if (isSameSession(current, session)) {
-        const settled = {
+        const settled: FocusCounterDraft = {
           ...current,
           syncedCount: targetCount,
           dirty: current.count !== targetCount,
@@ -197,7 +195,7 @@ export function FocusPage({ passageId }: { passageId: string }) {
       const current = counterRef.current;
 
       if (isSameSession(current, session)) {
-        const pending = {
+        const pending: FocusCounterDraft = {
           ...current,
           dirty: true,
           updatedAt: new Date().toISOString(),

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { AccountSummary } from "@/components/auth/account-summary";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { InstallAppAction } from "@/components/pwa/install-app-action";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import {
   Sidebar,
@@ -78,6 +79,11 @@ export function AppSidebar() {
               />
 
               <SignOutButton
+                className="group-data-[collapsible=icon]:justify-center"
+                labelClassName="group-data-[collapsible=icon]:hidden"
+              />
+
+              <InstallAppAction
                 className="group-data-[collapsible=icon]:justify-center"
                 labelClassName="group-data-[collapsible=icon]:hidden"
               />

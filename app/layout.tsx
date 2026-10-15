@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { PwaProvider } from "@/components/pwa/pwa-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -11,6 +12,20 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "المتون",
   description: "تطبيق لحفظ ومراجعة المتون العلمية",
+  applicationName: "المتون",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "المتون",
+  },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  colorScheme: "light dark",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
@@ -33,7 +48,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <DirectionProvider direction="rtl">
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              <PwaProvider>{children}</PwaProvider>
+            </AuthProvider>
           </DirectionProvider>
 
           <Toaster

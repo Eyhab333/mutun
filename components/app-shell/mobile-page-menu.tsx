@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react";
 
 import { AccountSummary } from "@/components/auth/account-summary";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { InstallAppAction } from "@/components/pwa/install-app-action";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { Button } from "@/components/ui/button";
 import {
@@ -97,6 +98,7 @@ export function MobilePageMenu() {
           {user ? (
             <div className="space-y-3 border-t px-3 pt-3">
               <AccountSummary user={user} />
+              <InstallAppAction />
               <SignOutButton />
             </div>
           ) : null}
