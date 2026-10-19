@@ -22,20 +22,6 @@ type AuthContextValue = {
 
 export const AuthContext = React.createContext<AuthContextValue | null>(null);
 
-const allowedEmail = normalizeEmail(process.env.NEXT_PUBLIC_ALLOWED_EMAIL);
-
-function normalizeEmail(email: string | null | undefined) {
-  return email?.trim().toLowerCase() ?? "";
-}
-
-function isAllowedUser(user: User) {
-  if (!allowedEmail) {
-    return process.env.NODE_ENV === "development";
-  }
-
-  return normalizeEmail(user.email) === allowedEmail;
-}
-
 function getSignInErrorMessage(error: unknown) {
   const code =
     typeof error === "object" && error !== null && "code" in error
@@ -68,15 +54,22 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
 
   React.useEffect(() => {
     let isMounted = true;
-    let isSigningOutUnauthorizedUser = false;
 
     const unsubscribe = onAuthStateChanged(
       auth,
       (nextUser) => {
-        void resolveAuthState(nextUser);
+        if (!isMounted) {
+          return;
+        }
+
+        setUser(nextUser);
+        setLoading(false);
       },
       (error) => {
-        logDevelopmentError("Unable to resolve Firebase authentication state.", error);
+        logDevelopmentError(
+          "Unable to resolve Firebase authentication state.",
+          error
+        );
 
         if (isMounted) {
           setUser(null);
@@ -85,38 +78,6 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
         }
       }
     );
-
-    async function resolveAuthState(nextUser: User | null) {
-      if (!isMounted) {
-        return;
-      }
-
-      if (nextUser && !isAllowedUser(nextUser)) {
-        if (isSigningOutUnauthorizedUser) {
-          return;
-        }
-
-        isSigningOutUnauthorizedUser = true;
-
-        try {
-          await signOut(auth);
-        } catch (error) {
-          logDevelopmentError("Unable to sign out an unauthorized user.", error);
-        } finally {
-          if (isMounted) {
-            setUser(null);
-            setLoading(false);
-            toast.error("هذا الحساب غير مصرح له بالدخول إلى التطبيق.");
-          }
-        }
-
-        return;
-      }
-
-      isSigningOutUnauthorizedUser = false;
-      setUser(nextUser);
-      setLoading(false);
-    }
 
     return () => {
       isMounted = false;
@@ -134,7 +95,11 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
 
     try {
       const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
+
+      provider.setCustomParameters({
+        prompt: "select_account",
+      });
+
       await signInWithPopup(auth, provider);
     } catch (error) {
       logDevelopmentError("Google sign-in failed.", error);
@@ -160,5 +125,9 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
     [loading, signInWithGoogle, signOutUser, signingIn, user]
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }

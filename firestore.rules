@@ -66,21 +66,19 @@ service cloud.firestore {
       );
     }
 
-
     /*
      * ==========================================================
      * Shared scientific content
      *
-     * Current personal-app phase:
-     * - Owner only can read.
-     * - Owner only can create/update.
+     * - Any signed-in user can read.
+     * - Only the content owner can create/update.
      * - Hard delete is disabled.
      * - Removal is handled through isArchived.
      * ==========================================================
      */
 
     match /levels/{levelId} {
-      allow read: if isContentOwner();
+      allow read: if isSignedIn();
 
       allow create: if isContentOwner()
         && request.resource.data.id == levelId;
@@ -93,7 +91,7 @@ service cloud.firestore {
     }
 
     match /sciences/{scienceId} {
-      allow read: if isContentOwner();
+      allow read: if isSignedIn();
 
       allow create: if isContentOwner()
         && request.resource.data.id == scienceId;
@@ -107,7 +105,7 @@ service cloud.firestore {
     }
 
     match /matn/{matnId} {
-      allow read: if isContentOwner();
+      allow read: if isSignedIn();
 
       allow create: if isContentOwner()
         && request.resource.data.id == matnId;
@@ -122,7 +120,7 @@ service cloud.firestore {
     }
 
     match /maqasid/{maqsadId} {
-      allow read: if isContentOwner();
+      allow read: if isSignedIn();
 
       allow create: if isContentOwner()
         && request.resource.data.id == maqsadId;
@@ -136,7 +134,7 @@ service cloud.firestore {
     }
 
     match /chapters/{chapterId} {
-      allow read: if isContentOwner();
+      allow read: if isSignedIn();
 
       allow create: if isContentOwner()
         && request.resource.data.id == chapterId;
@@ -151,7 +149,7 @@ service cloud.firestore {
     }
 
     match /sections/{sectionId} {
-      allow read: if isContentOwner();
+      allow read: if isSignedIn();
 
       allow create: if isContentOwner()
         && request.resource.data.id == sectionId;
@@ -167,7 +165,7 @@ service cloud.firestore {
     }
 
     match /passages/{passageId} {
-      allow read: if isContentOwner();
+      allow read: if isSignedIn();
 
       allow create: if isContentOwner()
         && request.resource.data.id == passageId;
@@ -184,7 +182,7 @@ service cloud.firestore {
     }
 
     match /passageResources/{resourceId} {
-      allow read: if isContentOwner();
+      allow read: if isSignedIn();
 
       allow create: if isContentOwner()
         && request.resource.data.id == resourceId;
@@ -196,7 +194,6 @@ service cloud.firestore {
 
       allow delete: if false;
     }
-
 
     /*
      * ==========================================================
@@ -217,7 +214,6 @@ service cloud.firestore {
         && request.resource.data.matnId == resource.data.matnId;
     }
 
-
     /*
      * ==========================================================
      * Active passages
@@ -231,7 +227,6 @@ service cloud.firestore {
 
       allow update: if keepsUserDocumentOwnership();
     }
-
 
     /*
      * ==========================================================
@@ -247,7 +242,6 @@ service cloud.firestore {
       allow update: if keepsUserDocumentOwnership();
     }
 
-
     /*
      * ==========================================================
      * Passage aggregate stats
@@ -261,7 +255,6 @@ service cloud.firestore {
 
       allow update: if keepsUserDocumentOwnership();
     }
-
 
     /*
      * ==========================================================
@@ -281,7 +274,6 @@ service cloud.firestore {
         && request.resource.data.matnId == resource.data.matnId;
     }
 
-
     /*
      * ==========================================================
      * Review groups
@@ -298,7 +290,6 @@ service cloud.firestore {
         && request.resource.data.matnId == resource.data.matnId;
     }
 
-
     /*
      * ==========================================================
      * Review records
@@ -313,7 +304,6 @@ service cloud.firestore {
       allow update: if keepsUserDocumentOwnership();
     }
 
-
     /*
      * ==========================================================
      * Repair records
@@ -327,7 +317,6 @@ service cloud.firestore {
 
       allow update: if keepsUserDocumentOwnership();
     }
-
 
     /*
      * ==========================================================
@@ -355,7 +344,6 @@ service cloud.firestore {
         && userId == request.auth.uid
         && resource.data.userId == request.auth.uid;
     }
-
 
     /*
      * ==========================================================

@@ -2,8 +2,13 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     function isContentOwner() {
-      return request.auth != null
+      return isSignedIn()
         && request.auth.uid == 'ptQwoqUEzygvsm4BpfdvGruJnvj1';
     }
 
@@ -32,10 +37,21 @@ service firebase.storage {
     }
 
     match /passage-resources/{passageId}/{resourceId}/{fileName} {
-      allow read: if isContentOwner();
+
+      // أي مستخدم مسجل يمكنه مشاهدة/تشغيل موارد المتون.
+      allow read: if isSignedIn();
+
+      // المالك فقط يستطيع رفع أو استبدال الملفات.
       allow create, update: if isContentOwner()
         && (isAllowedImage() || isAllowedAudio());
+
+      // المالك فقط يستطيع حذف الملفات.
       allow delete: if isContentOwner();
+    }
+
+    // أي مسار آخر داخل Storage ممنوع افتراضيًا.
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }
