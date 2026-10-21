@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { CheckCircle2 } from "lucide-react";
 
 import { AddToTodayButton } from "@/components/levels/add-to-today-button";
 import { PassageResources } from "@/components/passage-resources";
 import { WeakPassageButton } from "@/components/weak-passage-button";
 import { useAuth } from "@/hooks/use-auth";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { writeBrowseResume } from "@/lib/browse-resume";
 import {
@@ -20,6 +22,7 @@ import {
   getMatnProgressSummary,
   type MatnProgressSummary,
 } from "@/lib/firestore/matn-progress";
+import { listHistoricalReviewPassageIdsForUser } from "@/lib/firestore/reviews";
 import { listActivePassageIdsForUser } from "@/lib/firestore/user-active-passages";
 import { listWeakPassageStates } from "@/lib/firestore/user-passage-states";
 import type {
@@ -107,6 +110,9 @@ function PassageReadingList({
   activeTodayPassageIds,
   isTodayStateLoading,
   isTodayStateUnavailable,
+  reviewedPassageIds,
+  isReviewStateLoading,
+  isReviewStateUnavailable,
   weakPassageIds,
   isWeakStateReady,
   onAddedToToday,
@@ -117,6 +123,9 @@ function PassageReadingList({
   activeTodayPassageIds: ReadonlySet<string>;
   isTodayStateLoading: boolean;
   isTodayStateUnavailable: boolean;
+  reviewedPassageIds: ReadonlySet<string>;
+  isReviewStateLoading: boolean;
+  isReviewStateUnavailable: boolean;
   weakPassageIds: ReadonlySet<string>;
   isWeakStateReady: boolean;
   onAddedToToday: (passageId: string) => void;
@@ -168,14 +177,32 @@ function PassageReadingList({
                   onWeakChange={onWeakChange}
                 />
               ) : null}
-              <AddToTodayButton
-                userId={userId}
-                passage={passage}
-                isAdded={activeTodayPassageIds.has(passage.id)}
-                isChecking={isTodayStateLoading}
-                isUnavailable={isTodayStateUnavailable}
-                onAdded={onAddedToToday}
-              />
+              {isReviewStateLoading ? (
+                <span className="text-sm text-muted-foreground">
+                  جارٍ التحقق من حالة المراجعة...
+                </span>
+              ) : isReviewStateUnavailable ? (
+                <span className="text-sm text-muted-foreground">
+                  تعذر التحقق من حالة المراجعة
+                </span>
+              ) : reviewedPassageIds.has(passage.id) ? (
+                <Badge
+                  variant="secondary"
+                  className="h-6 gap-1.5 border border-border bg-muted px-2.5 text-muted-foreground"
+                >
+                  <CheckCircle2 className="size-3.5" />
+                  تم الحفظ · في المراجعة
+                </Badge>
+              ) : (
+                <AddToTodayButton
+                  userId={userId}
+                  passage={passage}
+                  isAdded={activeTodayPassageIds.has(passage.id)}
+                  isChecking={isTodayStateLoading}
+                  isUnavailable={isTodayStateUnavailable}
+                  onAdded={onAddedToToday}
+                />
+              )}
             </div>
           ) : null}
         </section>
@@ -227,6 +254,13 @@ export function MatnReader({
     "loading" | "ready" | "unavailable"
   >("loading");
   const [todayStateScopeKey, setTodayStateScopeKey] = React.useState("");
+  const [reviewedPassageIds, setReviewedPassageIds] = React.useState<Set<string>>(
+    new Set()
+  );
+  const [reviewState, setReviewState] = React.useState<
+    "loading" | "ready" | "unavailable"
+  >("loading");
+  const [reviewStateScopeKey, setReviewStateScopeKey] = React.useState("");
   const [matnProgressSummary, setMatnProgressSummary] =
     React.useState<MatnProgressSummary | null>(null);
   const [weakPassageIds, setWeakPassageIds] = React.useState<Set<string>>(
@@ -520,6 +554,47 @@ export function MatnReader({
     const passages = model?.passages ?? [];
 
     if (!user?.uid || passages.length === 0) {
+      setReviewedPassageIds(new Set());
+      setReviewState("ready");
+      setReviewStateScopeKey(todayScopeKey);
+      return;
+    }
+
+    let isCurrent = true;
+    setReviewState("loading");
+
+    void listHistoricalReviewPassageIdsForUser(
+      user.uid,
+      passages.map((passage) => passage.id)
+    )
+      .then((ids) => {
+        if (isCurrent) {
+          setReviewedPassageIds(ids);
+          setReviewState("ready");
+          setReviewStateScopeKey(todayScopeKey);
+        }
+      })
+      .catch((error) => {
+        if (process.env.NODE_ENV === "development") {
+          console.error("Unable to load passage review history.", error);
+        }
+
+        if (isCurrent) {
+          setReviewedPassageIds(new Set());
+          setReviewState("unavailable");
+          setReviewStateScopeKey(todayScopeKey);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [model?.passages, todayScopeKey, user?.uid]);
+
+  React.useEffect(() => {
+    const passages = model?.passages ?? [];
+
+    if (!user?.uid || passages.length === 0) {
       setWeakPassageIds(new Set());
       setWeakState("ready");
       return;
@@ -691,6 +766,13 @@ export function MatnReader({
               }
               isTodayStateUnavailable={
                 todayStateScopeKey === todayScopeKey && todayState === "unavailable"
+              }
+              reviewedPassageIds={reviewedPassageIds}
+              isReviewStateLoading={
+                reviewStateScopeKey !== todayScopeKey || reviewState === "loading"
+              }
+              isReviewStateUnavailable={
+                reviewStateScopeKey === todayScopeKey && reviewState === "unavailable"
               }
               weakPassageIds={weakPassageIds}
               isWeakStateReady={weakState === "ready"}

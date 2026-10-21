@@ -51,6 +51,60 @@ function getUniqueGroupIds(reviewGroupIds: readonly string[]) {
   return Array.from(new Set(reviewGroupIds.filter(Boolean)));
 }
 
+function chunkPassageIds(passageIds: readonly string[], size = 30) {
+  const chunks: string[][] = [];
+
+  for (let index = 0; index < passageIds.length; index += size) {
+    chunks.push(passageIds.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+export async function listHistoricalReviewPassageIdsForUser(
+  userId: string,
+  passageIds: readonly string[]
+) {
+  const requestedPassageIds = Array.from(new Set(passageIds.filter(Boolean)));
+
+  if (requestedPassageIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const requestedPassageIdSet = new Set(requestedPassageIds);
+  const historicalGroups = await Promise.all(
+    chunkPassageIds(requestedPassageIds).map((passageIdChunk) =>
+      getDocs(
+        query(
+          collection(db, firestoreCollections.reviewGroups),
+          where("userId", "==", userId),
+          where("passageIds", "array-contains-any", passageIdChunk)
+        )
+      )
+    )
+  );
+
+  const reviewedPassageIds = new Set<string>();
+
+  for (const snapshot of historicalGroups) {
+    for (const snapshotDocument of snapshot.docs) {
+      const group = documentData<ReviewGroup>(snapshotDocument);
+
+      if (!Array.isArray(group.passageIds)) {
+        continue;
+      }
+
+      for (const passageId of group.passageIds) {
+        if (requestedPassageIdSet.has(passageId)) {
+          reviewedPassageIds.add(passageId);
+        }
+      }
+    }
+  }
+
+  return reviewedPassageIds;
+}
+
 export async function ensureInitialReviewSchedule({
   userId,
   passageId,
