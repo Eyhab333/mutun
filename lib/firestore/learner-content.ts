@@ -40,6 +40,13 @@ export type LearnerMatnContext = {
   matn: Matn;
 };
 
+export type LearnerMatnStructure = {
+  maqasid: Maqsad[];
+  chapters: Chapter[];
+  sections: Section[];
+  passages: Passage[];
+};
+
 function documentData<T extends { id: string }>(
   snapshot: { id: string; data: () => unknown }
 ) {
@@ -144,6 +151,43 @@ export async function getActiveMatnContext(
   }
 
   return { level, science, matn };
+}
+
+export async function listActiveMatnStructure(
+  matnId: string
+): Promise<LearnerMatnStructure> {
+  const [maqasid, chapters, sections, passages] = await Promise.all([
+    listVisible<Maqsad>(
+      query(
+        collection(db, firestoreCollections.maqasid),
+        where("matnId", "==", matnId),
+        orderBy("order", "asc")
+      )
+    ),
+    listVisible<Chapter>(
+      query(
+        collection(db, firestoreCollections.chapters),
+        where("matnId", "==", matnId),
+        orderBy("order", "asc")
+      )
+    ),
+    listVisible<Section>(
+      query(
+        collection(db, firestoreCollections.sections),
+        where("matnId", "==", matnId),
+        orderBy("order", "asc")
+      )
+    ),
+    listVisible<Passage>(
+      query(
+        collection(db, firestoreCollections.passages),
+        where("matnId", "==", matnId),
+        orderBy("order", "asc")
+      )
+    ),
+  ]);
+
+  return { maqasid, chapters, sections, passages };
 }
 
 export async function listActiveMaqasid(matnId: string) {

@@ -16,7 +16,10 @@ export const firestoreCollections = {
   reviewRecords: "reviewRecords",
   repairRecords: "repairRecords",
   userSettings: "userSettings",
+  fcmRegistrations: "fcmRegistrations",
 } as const;
+
+export const fcmInstallationsCollection = "installations";
 
 export type FirestoreCollectionName =
   (typeof firestoreCollections)[keyof typeof firestoreCollections];

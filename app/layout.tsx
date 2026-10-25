@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { ReviewNotificationsProvider } from "@/components/notifications/review-notifications-provider";
 import { PwaProvider } from "@/components/pwa/pwa-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -49,7 +50,11 @@ export default function RootLayout({
         >
           <DirectionProvider direction="rtl">
             <AuthProvider>
-              <PwaProvider>{children}</PwaProvider>
+              <PwaProvider>
+                <ReviewNotificationsProvider>
+                  {children}
+                </ReviewNotificationsProvider>
+              </PwaProvider>
             </AuthProvider>
           </DirectionProvider>
 

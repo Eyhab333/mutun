@@ -1,6 +1,84 @@
 const CACHE_NAME = "mutun-shell-v1";
 const OFFLINE_URL = "/offline.html";
 
+function getReviewNotificationBody(dueCount) {
+  return dueCount > 1
+    ? `لديك ${dueCount} مجموعات جاهزة للمراجعة.`
+    : "لديك مراجعة مستحقة الآن.";
+}
+
+function logFcmDevelopmentError(error) {
+  if (self.__MUTUN_FCM_DEBUG__) {
+    console.error("Unable to initialize Firebase Messaging in the service worker.", error);
+  }
+}
+
+// This listener must be registered before Firebase Messaging is loaded so the
+// app controls where review notifications navigate after a click.
+self.addEventListener("notificationclick", (event) => {
+  if (event.notification?.data?.type !== "REVIEW_DUE") {
+    return;
+  }
+
+  event.notification.close();
+  const targetUrl = new URL(
+    event.notification.data.url || "/review",
+    self.location.origin
+  ).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(
+      async (windowClients) => {
+        const existingClient = windowClients.find(
+          (client) => new URL(client.url).origin === self.location.origin
+        );
+
+        if (existingClient) {
+          await existingClient.navigate(targetUrl);
+          return existingClient.focus();
+        }
+
+        return self.clients.openWindow(targetUrl);
+      }
+    )
+  );
+});
+
+// Reuse this PWA service worker for FCM instead of registering a competing
+// firebase-messaging-sw.js with the same scope.
+try {
+  importScripts("/fcm-config");
+
+  if (self.__MUTUN_FCM_CONFIG__) {
+    importScripts(
+      "https://www.gstatic.com/firebasejs/13.0.0/firebase-app-compat.js",
+      "https://www.gstatic.com/firebasejs/13.0.0/firebase-messaging-compat.js"
+    );
+
+    firebase.initializeApp(self.__MUTUN_FCM_CONFIG__);
+    firebase.messaging().onBackgroundMessage((payload) => {
+      if (payload?.data?.type !== "REVIEW_DUE") {
+        return;
+      }
+
+      const dueCount = Number(payload.data.dueCount) || 1;
+
+      return self.registration.showNotification("حان وقت المراجعة", {
+        body: getReviewNotificationBody(dueCount),
+        icon: "/icons/icon-192.png",
+        tag: "mutun-review-due",
+        renotify: true,
+        data: {
+          type: "REVIEW_DUE",
+          url: payload.data.url || "/review",
+        },
+      });
+    });
+  }
+} catch (error) {
+  logFcmDevelopmentError(error);
+}
+
 function isSameOrigin(url) {
   return url.origin === self.location.origin;
 }

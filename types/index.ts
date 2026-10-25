@@ -198,6 +198,14 @@ export type UserSettings = TimestampedDocument & {
   repetitionLevels: number[];
 };
 
+export type FcmInstallationRegistration = TimestampedDocument & {
+  installationId: string;
+  userId: string;
+  lastSeenAt: Timestamp;
+  enabled: boolean;
+  userAgent?: string;
+};
+
 export const defaultRepetitionLevels = [5, 10, 25, 50, 100, 150, 200] as const;
 
 export type BrowseResumeLocation = {

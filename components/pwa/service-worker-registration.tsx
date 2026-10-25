@@ -5,6 +5,19 @@ import { toast } from "sonner";
 
 const UPDATE_TOAST_ID = "mutun-pwa-update";
 
+export async function registerMutunServiceWorker() {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    throw new Error("Service workers are not supported in this browser.");
+  }
+
+  const registration = await navigator.serviceWorker.register("/sw.js", {
+    scope: "/",
+    updateViaCache: "none",
+  });
+
+  return registration.active ? registration : navigator.serviceWorker.ready;
+}
+
 export function ServiceWorkerRegistration() {
   const shouldReloadRef = React.useRef(false);
   const updateShownRef = React.useRef(false);
@@ -61,10 +74,7 @@ export function ServiceWorkerRegistration() {
       }
 
       try {
-        registration = await navigator.serviceWorker.register("/sw.js", {
-          scope: "/",
-          updateViaCache: "none",
-        });
+        registration = await registerMutunServiceWorker();
 
         if (cancelled) {
           return;

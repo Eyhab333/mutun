@@ -347,6 +347,34 @@ service cloud.firestore {
 
     /*
      * ==========================================================
+     * FCM installations
+     * ==========================================================
+     */
+
+    match /fcmRegistrations/{userId}/installations/{installationId} {
+      allow create: if isSignedIn()
+        && userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.installationId == installationId;
+
+      allow read, delete: if isSignedIn()
+        && userId == request.auth.uid
+        && resource.data.userId == request.auth.uid;
+
+      allow update: if isSignedIn()
+        && userId == request.auth.uid
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.installationId == resource.data.installationId;
+    }
+
+    /* Server-only FCM deduplication records. */
+    match /reviewNotificationReceipts/{documentId} {
+      allow read, write: if false;
+    }
+
+    /*
+     * ==========================================================
      * Default deny
      * ==========================================================
      */

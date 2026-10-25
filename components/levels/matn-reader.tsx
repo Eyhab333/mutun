@@ -4,18 +4,20 @@ import * as React from "react";
 import { CheckCircle2 } from "lucide-react";
 
 import { AddToTodayButton } from "@/components/levels/add-to-today-button";
+import { MatnStructureTree } from "@/components/levels/matn-structure-tree";
 import { PassageResources } from "@/components/passage-resources";
 import { WeakPassageButton } from "@/components/weak-passage-button";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { writeBrowseResume } from "@/lib/browse-resume";
 import {
   getActiveMatnContext,
   listActiveChapters,
   listActiveMaqasid,
+  listActiveMatnStructure,
   listActivePassages,
   listActiveSections,
+  type LearnerMatnStructure,
   type LearnerMatnContext,
 } from "@/lib/firestore/learner-content";
 import {
@@ -66,42 +68,6 @@ function selectRequestedItem<T extends { id: string }>(
   requestedId?: string
 ) {
   return items.find((item) => item.id === requestedId) ?? items[0] ?? null;
-}
-
-function LayerSelection({
-  title,
-  items,
-  selectedId,
-  onSelect,
-}: {
-  title: string;
-  items: readonly { id: string; title: string }[];
-  selectedId?: string;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <section className="space-y-2">
-      <h2 className="px-1 text-sm font-medium text-muted-foreground">{title}</h2>
-      {items.length === 0 ? (
-        <p className="px-1 text-sm leading-6 text-muted-foreground">لا توجد عناصر متاحة.</p>
-      ) : (
-        <div className="space-y-1">
-          {items.map((item) => (
-            <Button
-              key={item.id}
-              type="button"
-              variant={item.id === selectedId ? "secondary" : "ghost"}
-              className="h-auto w-full justify-start px-3 py-2 text-start leading-6"
-              onClick={() => onSelect(item.id)}
-              aria-pressed={item.id === selectedId}
-            >
-              <span className="line-clamp-2">{item.title}</span>
-            </Button>
-          ))}
-        </div>
-      )}
-    </section>
-  );
 }
 
 function PassageReadingList({
@@ -247,6 +213,11 @@ export function MatnReader({
   const { user } = useAuth();
   const [state, setState] = React.useState<ReaderState>("loading");
   const [model, setModel] = React.useState<ReaderModel | null>(null);
+  const [treeStructure, setTreeStructure] =
+    React.useState<LearnerMatnStructure | null>(null);
+  const [treeState, setTreeState] = React.useState<
+    "loading" | "ready" | "unavailable"
+  >("loading");
   const [activeTodayPassageIds, setActiveTodayPassageIds] = React.useState<
     Set<string>
   >(new Set());
@@ -482,6 +453,34 @@ export function MatnReader({
   }, [initialSelection, loadReader]);
 
   React.useEffect(() => {
+    let isCurrent = true;
+    setTreeStructure(null);
+    setTreeState("loading");
+
+    void listActiveMatnStructure(matnId)
+      .then((structure) => {
+        if (isCurrent) {
+          setTreeStructure(structure);
+          setTreeState("ready");
+        }
+      })
+      .catch((error) => {
+        if (process.env.NODE_ENV === "development") {
+          console.error("Unable to load Matn structure tree.", error);
+        }
+
+        if (isCurrent) {
+          setTreeStructure(null);
+          setTreeState("unavailable");
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [matnId]);
+
+  React.useEffect(() => {
     const passages = model?.passages ?? [];
 
     if (!user?.uid || passages.length === 0) {
@@ -647,25 +646,6 @@ export function MatnReader({
     return () => window.cancelAnimationFrame(animationFrame);
   }, [model?.passageAnchorId, state]);
 
-  function selectMaqsad(maqsadId: string) {
-    void loadReader({ maqsadId });
-  }
-
-  function selectChapter(chapterId: string) {
-    void loadReader({
-      ...(model?.selectedMaqsad ? { maqsadId: model.selectedMaqsad.id } : {}),
-      chapterId,
-    });
-  }
-
-  function selectSection(sectionId: string) {
-    void loadReader({
-      ...(model?.selectedMaqsad ? { maqsadId: model.selectedMaqsad.id } : {}),
-      ...(model?.selectedChapter ? { chapterId: model.selectedChapter.id } : {}),
-      sectionId,
-    });
-  }
-
   function markPassageAddedToToday(passageId: string) {
     setActiveTodayPassageIds((current) => new Set(current).add(passageId));
   }
@@ -722,38 +702,32 @@ export function MatnReader({
             summary={matnProgressSummary}
           />
           <div className="grid items-start gap-8 lg:grid-cols-[minmax(15rem,0.38fr)_minmax(0,1fr)]">
-          {(model.context.matn.hasMaqasid ||
-            model.context.matn.hasChapters ||
-            model.context.matn.hasSections) && (
-            <aside className="space-y-5 rounded-xl border bg-card p-3 sm:p-4 lg:sticky lg:top-6">
-              {model.context.matn.hasMaqasid ? (
-                <LayerSelection
-                  title="المقاصد"
-                  items={model.maqasid}
-                  selectedId={model.selectedMaqsad?.id}
-                  onSelect={selectMaqsad}
-                />
+            <aside className="rounded-xl border bg-card p-3 sm:p-4 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto">
+              {treeState === "loading" ? (
+                <p className="px-2 py-3 text-sm text-muted-foreground">
+                  جارٍ تحميل البنية...
+                </p>
               ) : null}
-              {model.context.matn.hasChapters ? (
-                <LayerSelection
-                  title="الأبواب"
-                  items={model.chapters}
-                  selectedId={model.selectedChapter?.id}
-                  onSelect={selectChapter}
-                />
+              {treeState === "unavailable" ? (
+                <p className="px-2 py-3 text-sm leading-6 text-muted-foreground">
+                  تعذر تحميل بنية المتن.
+                </p>
               ) : null}
-              {model.context.matn.hasSections ? (
-                <LayerSelection
-                  title="الفصول"
-                  items={model.sections}
-                  selectedId={model.selectedSection?.id}
-                  onSelect={selectSection}
+              {treeState === "ready" && treeStructure ? (
+                <MatnStructureTree
+                  levelId={levelId}
+                  scienceId={scienceId}
+                  matn={model.context.matn}
+                  maqasid={treeStructure.maqasid}
+                  chapters={treeStructure.chapters}
+                  sections={treeStructure.sections}
+                  passages={treeStructure.passages}
+                  currentPassageId={initialSelection.passageId}
                 />
               ) : null}
             </aside>
-          )}
 
-          <section className="min-w-0">
+            <section className="min-w-0">
             <h2 className="mb-7 text-lg font-semibold tracking-tight text-foreground">
               {model.context.matn.type === "POETRY" ? "الأبيات" : "المقاطع"}
             </h2>
@@ -779,7 +753,7 @@ export function MatnReader({
               onAddedToToday={markPassageAddedToToday}
               onWeakChange={updatePassageWeakState}
             />
-          </section>
+            </section>
           </div>
         </div>
       ) : null}
