@@ -62,7 +62,7 @@ export function WeakPassageButton({
       aria-pressed={isWeak}
     >
       <CircleAlert />
-      {isWeak ? "إزالة الضعف" : "ضعيف"}
+      {isWeak ? "إزالة الضعف" : "يحتاج ترميم؟"}
     </Button>
   );
 }
