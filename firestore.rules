@@ -368,6 +368,29 @@ service cloud.firestore {
         && request.resource.data.installationId == resource.data.installationId;
     }
 
+    /*
+     * ==========================================================
+     * In-app notifications
+     *
+     * Created only by the server. A user can only read their own
+     * notifications and mark them as read.
+     * ==========================================================
+     */
+
+    match /userNotifications/{notificationId} {
+      allow read: if ownsExistingUserDocument();
+
+      allow create, delete: if false;
+
+      allow update: if keepsUserDocumentOwnership()
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['isRead', 'readAt', 'updatedAt'])
+        && request.resource.data.isRead == true
+        && request.resource.data.readAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
     /* Server-only FCM deduplication records. */
     match /reviewNotificationReceipts/{documentId} {
       allow read, write: if false;

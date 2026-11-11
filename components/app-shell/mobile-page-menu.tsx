@@ -19,7 +19,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { isNavigationItemActive, secondaryNavigationItems } from "@/lib/navigation";
+import {
+  getVisibleNavigationItems,
+  isNavigationItemActive,
+  secondaryNavigationItems,
+} from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -27,6 +31,10 @@ export function MobilePageMenu() {
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
   const { user } = useAuth();
+  const visibleSecondaryNavigationItems = getVisibleNavigationItems(
+    secondaryNavigationItems,
+    user
+  );
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -69,7 +77,7 @@ export function MobilePageMenu() {
         </SheetHeader>
 
         <div className="space-y-1 p-3">
-          {secondaryNavigationItems.map((item) => {
+          {visibleSecondaryNavigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = isNavigationItemActive(pathname, item.href);
 

@@ -15,6 +15,7 @@ const REVIEW_GROUPS_COLLECTION = "reviewGroups";
 const FCM_REGISTRATIONS_COLLECTION = "fcmRegistrations";
 const FCM_INSTALLATIONS_COLLECTION = "installations";
 const REVIEW_NOTIFICATION_RECEIPTS_COLLECTION = "reviewNotificationReceipts";
+const USER_NOTIFICATIONS_COLLECTION = "userNotifications";
 const MAX_FIDS_PER_BATCH = 500;
 const RECEIPT_CLAIM_DURATION_MS = 25 * 60 * 1000;
 
@@ -32,6 +33,11 @@ type FcmInstallation = {
 
 type ClaimedReviewGroup = DueReviewGroup & {
   receiptReference: DocumentReference;
+};
+
+type FinalizedReviewNotification = {
+  groups: ClaimedReviewGroup[];
+  dueCount: number;
 };
 
 function chunk<T>(items: readonly T[], size: number) {
@@ -65,6 +71,18 @@ function createReceiptId(group: Pick<DueReviewGroup, "id" | "userId" | "nextRevi
   return `review-${digest}`;
 }
 
+function createReviewNotificationDedupeKey(
+  userId: string,
+  groups: readonly Pick<DueReviewGroup, "id" | "userId" | "nextReviewAt">[]
+) {
+  const receiptIds = groups.map(createReceiptId).sort();
+  const digest = createHash("sha256")
+    .update(`${userId}\u0000${receiptIds.join("\u0000")}`)
+    .digest("hex");
+
+  return `review-${digest}`;
+}
+
 function isReceiptClaimStillActive(data: Record<string, unknown>, now: Timestamp) {
   return data.status === "claimed" && isTimestamp(data.claimExpiresAt)
     ? data.claimExpiresAt.toMillis() > now.toMillis()
@@ -85,8 +103,8 @@ function isPermanentlyInvalidFidError(error: unknown) {
 
 function getNotificationBody(dueCount: number) {
   return dueCount > 1
-    ? `لديك ${dueCount} مجموعات جاهزة للمراجعة.`
-    : "لديك مراجعة مستحقة الآن.";
+    ? `لديك ${dueCount} مراجعات جاهزة.`
+    : "لديك مراجعة واحدة جاهزة.";
 }
 
 async function listDueReviewGroups() {
@@ -199,32 +217,80 @@ async function claimDueReviewGroups(groups: readonly DueReviewGroup[]) {
   });
 }
 
-async function markReceiptsSent(groups: readonly ClaimedReviewGroup[]) {
-  for (const receiptChunk of chunk(groups, MAX_FIDS_PER_BATCH)) {
-    const batch = adminDb.batch();
+function isCurrentReceiptClaim(
+  data: Record<string, unknown>,
+  group: ClaimedReviewGroup,
+  now: Timestamp
+) {
+  return (
+    data.status === "claimed" &&
+    data.userId === group.userId &&
+    data.reviewGroupId === group.id &&
+    isSameTimestamp(group.nextReviewAt, data.nextReviewAt) &&
+    isReceiptClaimStillActive(data, now)
+  );
+}
 
-    for (const group of receiptChunk) {
-      batch.update(group.receiptReference, {
+async function createInAppReviewDueNotification(
+  userId: string,
+  groups: readonly ClaimedReviewGroup[]
+): Promise<FinalizedReviewNotification | null> {
+  return adminDb.runTransaction(async (transaction) => {
+    const now = Timestamp.now();
+    const receiptEntries = await Promise.all(
+      groups.map(async (group) => ({
+        group,
+        receipt: await transaction.get(group.receiptReference),
+      }))
+    );
+    const finalizedGroups = receiptEntries.flatMap((entry) => {
+      const receipt = entry.receipt.data();
+
+      return receipt && isCurrentReceiptClaim(receipt, entry.group, now)
+        ? [entry.group]
+        : [];
+    });
+
+    if (finalizedGroups.length === 0) {
+      return null;
+    }
+
+    const dedupeKey = createReviewNotificationDedupeKey(userId, finalizedGroups);
+    const notificationReference = adminDb
+      .collection(USER_NOTIFICATIONS_COLLECTION)
+      .doc(dedupeKey);
+    const existingNotification = await transaction.get(notificationReference);
+    const dueCount = finalizedGroups.length;
+
+    if (!existingNotification.exists) {
+      transaction.set(notificationReference, {
+        id: notificationReference.id,
+        userId,
+        type: "REVIEW_DUE",
+        title: "حان وقت المراجعة",
+        body: getNotificationBody(dueCount),
+        url: "/review",
+        dueCount,
+        isRead: false,
+        dedupeKey,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+
+    for (const group of finalizedGroups) {
+      transaction.update(group.receiptReference, {
         status: "sent",
         sentAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
     }
 
-    await batch.commit();
-  }
-}
-
-async function releaseReceiptClaims(groups: readonly ClaimedReviewGroup[]) {
-  for (const receiptChunk of chunk(groups, MAX_FIDS_PER_BATCH)) {
-    const batch = adminDb.batch();
-
-    for (const group of receiptChunk) {
-      batch.delete(group.receiptReference);
-    }
-
-    await batch.commit();
-  }
+    return {
+      groups: finalizedGroups,
+      dueCount,
+    } satisfies FinalizedReviewNotification;
+  });
 }
 
 async function disableInvalidInstallations(
@@ -249,7 +315,6 @@ async function sendReviewDueNotification(
   dueCount: number
 ) {
   const invalidInstallations: FcmInstallation[] = [];
-  let successCount = 0;
 
   for (const installationChunk of chunk(installations, MAX_FIDS_PER_BATCH)) {
     const message: FidMulticastMessage = {
@@ -268,52 +333,65 @@ async function sendReviewDueNotification(
     const response = await adminMessaging.sendEachForMulticast(message);
 
     response.responses.forEach((result, index) => {
-      if (result.success) {
-        successCount += 1;
-      } else if (isPermanentlyInvalidFidError(result.error)) {
+      if (!result.success && isPermanentlyInvalidFidError(result.error)) {
         invalidInstallations.push(installationChunk[index]);
       }
     });
   }
 
-  return { successCount, invalidInstallations };
+  return { invalidInstallations };
 }
 
 async function notifyUser(
   userId: string,
   dueGroups: readonly DueReviewGroup[]
 ) {
-  const installations = await listActiveFcmInstallations(userId);
-
-  if (installations.length === 0) {
-    return;
-  }
-
   const claimedGroups = await claimDueReviewGroups(dueGroups);
 
   if (claimedGroups.length === 0) {
     return;
   }
 
+  let finalizedNotification: FinalizedReviewNotification | null;
+
+  try {
+    finalizedNotification = await createInAppReviewDueNotification(
+      userId,
+      claimedGroups
+    );
+  } catch (error) {
+    logger.error("Unable to create an in-app due review notification.", error);
+    return;
+  }
+
+  if (!finalizedNotification) {
+    return;
+  }
+
+  let installations: FcmInstallation[];
+
+  try {
+    installations = await listActiveFcmInstallations(userId);
+  } catch (error) {
+    logger.error("Unable to load FCM installations for a due review.", error);
+    return;
+  }
+
+  if (installations.length === 0) {
+    return;
+  }
+
   try {
     const result = await sendReviewDueNotification(
       installations,
-      dueGroups.length
+      finalizedNotification.dueCount
     );
 
     if (result.invalidInstallations.length > 0) {
       await disableInvalidInstallations(result.invalidInstallations);
     }
-
-    if (result.successCount > 0) {
-      await markReceiptsSent(claimedGroups);
-      return;
-    }
-
-    await releaseReceiptClaims(claimedGroups);
   } catch (error) {
     logger.error("Unable to send a due review notification.", error);
-    await releaseReceiptClaims(claimedGroups);
   }
 }
 

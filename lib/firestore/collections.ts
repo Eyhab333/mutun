@@ -17,6 +17,7 @@ export const firestoreCollections = {
   repairRecords: "repairRecords",
   userSettings: "userSettings",
   fcmRegistrations: "fcmRegistrations",
+  userNotifications: "userNotifications",
 } as const;
 
 export const fcmInstallationsCollection = "installations";

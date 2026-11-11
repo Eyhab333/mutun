@@ -4,13 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
+  getVisibleNavigationItems,
   isNavigationItemActive,
   primaryNavigationItems,
 } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 export function MobileNavigation() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const visiblePrimaryNavigationItems = getVisibleNavigationItems(
+    primaryNavigationItems,
+    user
+  );
 
   return (
     <nav
@@ -18,7 +25,7 @@ export function MobileNavigation() {
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 backdrop-blur md:hidden"
     >
       <div className="mx-auto flex max-w-xl items-stretch gap-1">
-        {primaryNavigationItems.map((item) => {
+        {visiblePrimaryNavigationItems.map((item) => {
           const isActive = isNavigationItemActive(pathname, item.href);
           const Icon = item.icon;
 

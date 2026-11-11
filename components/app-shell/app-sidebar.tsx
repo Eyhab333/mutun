@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { AccountSummary } from "@/components/auth/account-summary";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { InstallAppAction } from "@/components/pwa/install-app-action";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   applicationIcon,
+  getVisibleNavigationItems,
   isNavigationItemActive,
   primaryNavigationItems,
   secondaryNavigationItems,
@@ -35,6 +37,14 @@ const ApplicationIcon = applicationIcon;
 export function AppSidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const visiblePrimaryNavigationItems = getVisibleNavigationItems(
+    primaryNavigationItems,
+    user
+  );
+  const visibleSecondaryNavigationItems = getVisibleNavigationItems(
+    secondaryNavigationItems,
+    user
+  );
 
   return (
     <Sidebar side="right" collapsible="icon" dir="rtl">
@@ -58,13 +68,13 @@ export function AppSidebar() {
       <SidebarContent>
         <NavigationGroup
           label="الرئيسية"
-          items={primaryNavigationItems}
+          items={visiblePrimaryNavigationItems}
           pathname={pathname}
         />
 
         <NavigationGroup
           label="الحساب"
-          items={secondaryNavigationItems}
+          items={visibleSecondaryNavigationItems}
           pathname={pathname}
         />
       </SidebarContent>
@@ -73,6 +83,8 @@ export function AppSidebar() {
         {user ? (
           <>
             <div className="space-y-2 px-2">
+              <NotificationBell className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center" />
+
               <AccountSummary
                 user={user}
                 detailsClassName="group-data-[collapsible=icon]:hidden"

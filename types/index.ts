@@ -7,6 +7,7 @@ export type NavigationItem = {
   href: "/" | `/${string}`;
   icon: LucideIcon;
   section: "main" | "secondary";
+  requiresAdmin?: boolean;
 };
 
 type TimestampedDocument = {
@@ -204,6 +205,21 @@ export type FcmInstallationRegistration = TimestampedDocument & {
   lastSeenAt: Timestamp;
   enabled: boolean;
   userAgent?: string;
+};
+
+export type UserNotificationType = "REVIEW_DUE";
+
+export type UserNotification = TimestampedDocument & {
+  id: string;
+  userId: string;
+  type: UserNotificationType;
+  title: string;
+  body: string;
+  url: string;
+  dueCount: number;
+  isRead: boolean;
+  readAt?: Timestamp;
+  dedupeKey: string;
 };
 
 export const defaultRepetitionLevels = [5, 10, 25, 50, 100, 150, 200] as const;

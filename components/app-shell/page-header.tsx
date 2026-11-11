@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 
+import { NotificationBell } from "@/components/notifications/notification-bell";
+
 import { MobilePageMenu } from "./mobile-page-menu";
 
 type PageHeaderProps = {
@@ -16,6 +18,8 @@ export function PageHeader({ title, description }: PageHeaderProps) {
         >
           <MobilePageMenu />
         </Suspense>
+
+        <NotificationBell className="md:hidden" />
 
         <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           {title}

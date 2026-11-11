@@ -10,6 +10,7 @@ import {
   getReviewMessagingAvailability,
   type ReviewMessagingAvailability,
 } from "@/lib/fcm/review-notifications";
+import { getUnreadNotificationCount } from "@/lib/firestore/notifications";
 
 type ReviewNotificationStatus =
   | "loading"
@@ -21,6 +22,11 @@ type ReviewNotificationsContextValue = {
   status: ReviewNotificationStatus;
   isEnabling: boolean;
   enableReviewNotifications: () => Promise<void>;
+  unreadCount: number;
+  isUnreadCountLoading: boolean;
+  refreshUnreadCount: () => Promise<void>;
+  decrementUnreadCount: () => void;
+  clearUnreadCount: () => void;
 };
 
 type MessagingConnection = Awaited<
@@ -51,19 +57,58 @@ export function ReviewNotificationsProvider({
   const router = useRouter();
   const [status, setStatus] = React.useState<ReviewNotificationStatus>("loading");
   const [isEnabling, setIsEnabling] = React.useState(false);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const [isUnreadCountLoading, setIsUnreadCountLoading] = React.useState(false);
+  const unreadRequestIdRef = React.useRef(0);
   const connectionRef = React.useRef<{
     userId: string;
     connection: MessagingConnection;
   } | null>(null);
 
+  const refreshUnreadCount = React.useCallback(async () => {
+    const requestId = ++unreadRequestIdRef.current;
+
+    if (!user) {
+      setUnreadCount(0);
+      setIsUnreadCountLoading(false);
+      return;
+    }
+
+    setIsUnreadCountLoading(true);
+
+    try {
+      const nextUnreadCount = await getUnreadNotificationCount(user.uid);
+
+      if (requestId === unreadRequestIdRef.current) {
+        setUnreadCount(nextUnreadCount);
+      }
+    } catch (error) {
+      logDevelopmentError("Unable to load unread notifications.", error);
+    } finally {
+      if (requestId === unreadRequestIdRef.current) {
+        setIsUnreadCountLoading(false);
+      }
+    }
+  }, [user]);
+
+  const decrementUnreadCount = React.useCallback(() => {
+    setUnreadCount((currentUnreadCount) => Math.max(0, currentUnreadCount - 1));
+  }, []);
+
+  const clearUnreadCount = React.useCallback(() => {
+    setUnreadCount(0);
+  }, []);
+
   const handleReviewDue = React.useCallback(() => {
+    void refreshUnreadCount();
+
     toast.info("حان وقت المراجعة", {
       action: {
         label: "فتح المراجعة",
         onClick: () => router.push("/review"),
       },
     });
-  }, [router]);
+  }, [refreshUnreadCount, router]);
 
   const disposeConnection = React.useCallback(() => {
     connectionRef.current?.connection.dispose();
@@ -143,6 +188,22 @@ export function ReviewNotificationsProvider({
     };
   }, [disposeConnection, ensureConnection, user]);
 
+  React.useEffect(() => {
+    void refreshUnreadCount();
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") {
+        void refreshUnreadCount();
+      }
+    }
+
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refreshUnreadCount]);
+
   const enableReviewNotifications = React.useCallback(async () => {
     if (isEnabling || !user) {
       return;
@@ -198,8 +259,22 @@ export function ReviewNotificationsProvider({
       status,
       isEnabling,
       enableReviewNotifications,
+      unreadCount,
+      isUnreadCountLoading,
+      refreshUnreadCount,
+      decrementUnreadCount,
+      clearUnreadCount,
     }),
-    [enableReviewNotifications, isEnabling, status]
+    [
+      clearUnreadCount,
+      decrementUnreadCount,
+      enableReviewNotifications,
+      isEnabling,
+      isUnreadCountLoading,
+      refreshUnreadCount,
+      status,
+      unreadCount,
+    ]
   );
 
   return (

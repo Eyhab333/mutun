@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 
 import type { NavigationItem } from "@/types";
+import { isAdminUser } from "@/lib/auth/admin";
+import type { User } from "firebase/auth";
 
 export const navigationItems: readonly NavigationItem[] = [
   {
@@ -41,6 +43,7 @@ export const navigationItems: readonly NavigationItem[] = [
     href: "/admin",
     icon: ShieldCheck,
     section: "secondary",
+    requiresAdmin: true,
   },
   {
     label: "الإعدادات",
@@ -59,6 +62,13 @@ export const secondaryNavigationItems = navigationItems.filter(
 );
 
 export const applicationIcon = BookOpen;
+
+export function getVisibleNavigationItems(
+  items: readonly NavigationItem[],
+  user: Pick<User, "uid"> | null | undefined
+) {
+  return items.filter((item) => !item.requiresAdmin || isAdminUser(user));
+}
 
 export function isNavigationItemActive(
   pathname: string,
