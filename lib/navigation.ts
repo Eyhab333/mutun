@@ -3,7 +3,6 @@ import {
   CalendarDays,
   Layers3,
   RotateCcw,
-  Settings,
   ShieldCheck,
   Wrench,
 } from "lucide-react";
@@ -44,12 +43,6 @@ export const navigationItems: readonly NavigationItem[] = [
     icon: ShieldCheck,
     section: "secondary",
     requiresAdmin: true,
-  },
-  {
-    label: "الإعدادات",
-    href: "/settings",
-    icon: Settings,
-    section: "secondary",
   },
 ];
 
