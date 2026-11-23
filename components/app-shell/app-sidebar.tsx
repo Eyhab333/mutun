@@ -37,10 +37,10 @@ import {
 } from "@/components/ui/sidebar";
 import {
   applicationIcon,
+  adminNavigationItems,
   getVisibleNavigationItems,
   isNavigationItemActive,
   primaryNavigationItems,
-  secondaryNavigationItems,
 } from "@/lib/navigation";
 import type { NavigationItem } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
@@ -50,12 +50,8 @@ const ApplicationIcon = applicationIcon;
 export function AppSidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const visiblePrimaryNavigationItems = getVisibleNavigationItems(
-    primaryNavigationItems,
-    user
-  );
-  const visibleSecondaryNavigationItems = getVisibleNavigationItems(
-    secondaryNavigationItems,
+  const visibleAdminNavigationItems = getVisibleNavigationItems(
+    adminNavigationItems,
     user
   );
 
@@ -85,13 +81,13 @@ export function AppSidebar() {
       <SidebarContent>
         <NavigationGroup
           label="الرئيسية"
-          items={visiblePrimaryNavigationItems}
+          items={primaryNavigationItems}
           pathname={pathname}
         />
 
-        {visibleSecondaryNavigationItems.length > 0 ? (
+        {visibleAdminNavigationItems.length > 0 ? (
           <NavigationGroup
-            items={visibleSecondaryNavigationItems}
+            items={visibleAdminNavigationItems}
             pathname={pathname}
           />
         ) : null}

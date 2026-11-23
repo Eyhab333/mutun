@@ -1,5 +1,9 @@
+import Link from "next/link";
+import { LibraryBig } from "lucide-react";
+
 import { ContentWorkspace } from "@/components/admin/content-workspace";
 import { PageHeader } from "@/components/app-shell/page-header";
+import { Button } from "@/components/ui/button";
 
 export default function AdminPage() {
   return (
@@ -8,6 +12,16 @@ export default function AdminPage() {
         title="إدارة المحتوى"
         description="نظّم المستويات والعلوم والمتون في مسار واحد واضح."
       />
+      <div className="mt-6 flex justify-start">
+        <Button
+          nativeButton={false}
+          render={<Link href="/admin/books" />}
+          variant="outline"
+        >
+          <LibraryBig />
+          قراءة الكتب
+        </Button>
+      </div>
       <ContentWorkspace />
     </section>
   );

@@ -1,4 +1,6 @@
-const CACHE_NAME = "mutun-shell-v1";
+const CACHE_PREFIX = "mutun-";
+const CACHE_VERSION = "v2";
+const CACHE_NAME = `${CACHE_PREFIX}shell-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline.html";
 
 function getReviewNotificationBody(dueCount) {
@@ -95,21 +97,28 @@ function isAppMetadata(url) {
   );
 }
 
-async function cacheFirst(request) {
+async function networkFirstStaticAsset(request) {
   const cache = await caches.open(CACHE_NAME);
-  const cachedResponse = await cache.match(request);
 
-  if (cachedResponse) {
-    return cachedResponse;
+  try {
+    const response = await fetch(request);
+
+    if (response.ok) {
+      await cache.put(request, response.clone());
+    }
+
+    return response;
+  } catch {
+    const cachedResponse = await cache.match(request);
+
+    return (
+      cachedResponse ||
+      new Response("Offline", {
+        status: 503,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      })
+    );
   }
-
-  const response = await fetch(request);
-
-  if (response.ok) {
-    await cache.put(request, response.clone());
-  }
-
-  return response;
 }
 
 async function networkFirstNavigation(request) {
@@ -142,7 +151,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith("mutun-shell-") && key !== CACHE_NAME)
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
             .map((key) => caches.delete(key))
         )
       )
@@ -188,6 +197,6 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isNextStaticAsset(url) || isAppMetadata(url)) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(networkFirstStaticAsset(request));
   }
 });

@@ -197,6 +197,56 @@ service cloud.firestore {
 
     /*
      * ==========================================================
+     * Reading books
+     * ==========================================================
+     */
+
+    match /bookCollections/{collectionId} {
+      allow read: if isSignedIn();
+
+      allow create: if isContentOwner()
+        && request.resource.data.id == collectionId;
+
+      allow update: if isContentOwner()
+        && request.resource.data.id == collectionId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.levelId == resource.data.levelId
+        && request.resource.data.scienceId == resource.data.scienceId;
+
+      allow delete: if false;
+    }
+
+    match /books/{bookId} {
+      allow read: if isSignedIn();
+
+      allow create: if isContentOwner()
+        && request.resource.data.id == bookId;
+
+      allow update: if isContentOwner()
+        && request.resource.data.id == bookId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.levelId == resource.data.levelId
+        && request.resource.data.scienceId == resource.data.scienceId;
+
+      allow delete: if false;
+    }
+
+    match /bookPages/{pageId} {
+      allow read: if isSignedIn();
+
+      allow create: if isContentOwner()
+        && request.resource.data.id == pageId;
+
+      allow update: if isContentOwner()
+        && request.resource.data.id == pageId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.bookId == resource.data.bookId;
+
+      allow delete: if false;
+    }
+
+    /*
+     * ==========================================================
      * User passage state
      * ==========================================================
      */
@@ -272,6 +322,41 @@ service cloud.firestore {
         && request.resource.data.id == documentId
         && request.resource.data.id == resource.data.id
         && request.resource.data.matnId == resource.data.matnId;
+    }
+
+    /*
+     * ==========================================================
+     * Book reading cycles and daily statistics
+     * ==========================================================
+     */
+
+    match /bookReadingCycles/{documentId} {
+      allow create: if ownsIncomingUserDocument()
+        && request.resource.data.id == documentId;
+
+      allow read, delete: if ownsExistingUserDocument();
+
+      allow update: if keepsUserDocumentOwnership()
+        && request.resource.data.id == documentId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.bookId == resource.data.bookId
+        && request.resource.data.cycleNumber == resource.data.cycleNumber
+        && request.resource.data.startedAt == resource.data.startedAt;
+    }
+
+    match /bookReadingDailyStats/{documentId} {
+      allow create: if ownsIncomingUserDocument()
+        && request.resource.data.id == documentId;
+
+      allow read, delete: if ownsExistingUserDocument();
+
+      allow update: if keepsUserDocumentOwnership()
+        && request.resource.data.id == documentId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.bookId == resource.data.bookId
+        && request.resource.data.cycleId == resource.data.cycleId
+        && request.resource.data.dateKey == resource.data.dateKey
+        && request.resource.data.createdAt == resource.data.createdAt;
     }
 
     /*
@@ -358,13 +443,14 @@ service cloud.firestore {
         && request.resource.data.installationId == installationId;
 
       allow read, delete: if isSignedIn()
-        && userId == request.auth.uid
-        && resource.data.userId == request.auth.uid;
+        && userId == request.auth.uid;
 
       allow update: if isSignedIn()
         && userId == request.auth.uid
-        && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid
+        && resource.data.userId == userId
+        && request.resource.data.userId == resource.data.userId
+        && resource.data.installationId == installationId
         && request.resource.data.installationId == resource.data.installationId;
     }
 

@@ -4,19 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
-  getVisibleNavigationItems,
   isNavigationItemActive,
   primaryNavigationItems,
 } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/use-auth";
 
 export function MobileNavigation() {
   const pathname = usePathname();
-  const { user } = useAuth();
-  const visiblePrimaryNavigationItems = getVisibleNavigationItems(
-    primaryNavigationItems,
-    user
+  const visiblePrimaryNavigationItems = primaryNavigationItems.filter(
+    (item) => item.mobileVisible !== false
   );
 
   return (

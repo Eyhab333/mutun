@@ -4,10 +4,60 @@ import * as React from "react";
 import { toast } from "sonner";
 
 const UPDATE_TOAST_ID = "mutun-pwa-update";
+const MUTUN_CACHE_PREFIX = "mutun-";
+
+let developmentCleanupPromise: Promise<void> | null = null;
+
+export function isMutunServiceWorkerEnabled() {
+  return process.env.NODE_ENV === "production";
+}
+
+export function cleanupMutunDevelopmentPwaArtifacts() {
+  if (developmentCleanupPromise) {
+    return developmentCleanupPromise;
+  }
+
+  developmentCleanupPromise = (async () => {
+    const cleanupTasks: Promise<unknown>[] = [];
+
+    if ("serviceWorker" in navigator) {
+      cleanupTasks.push(
+        navigator.serviceWorker
+          .getRegistrations()
+          .then((registrations) =>
+            Promise.all(registrations.map((registration) => registration.unregister()))
+          )
+      );
+    }
+
+    if ("caches" in window) {
+      cleanupTasks.push(
+        window.caches
+          .keys()
+          .then((keys) =>
+            Promise.all(
+              keys
+                .filter((key) => key.startsWith(MUTUN_CACHE_PREFIX))
+                .map((key) => window.caches.delete(key))
+            )
+          )
+      );
+    }
+
+    await Promise.all(cleanupTasks);
+  })();
+
+  return developmentCleanupPromise;
+}
 
 export async function registerMutunServiceWorker() {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
     throw new Error("Service workers are not supported in this browser.");
+  }
+
+  if (!isMutunServiceWorkerEnabled()) {
+    await cleanupMutunDevelopmentPwaArtifacts();
+    throw new Error("Service workers are disabled during development.");
   }
 
   const registration = await navigator.serviceWorker.register("/sw.js", {
@@ -23,10 +73,15 @@ export function ServiceWorkerRegistration() {
   const updateShownRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (
-      process.env.NODE_ENV !== "production" ||
-      !("serviceWorker" in navigator)
-    ) {
+    if (process.env.NODE_ENV !== "production") {
+      void cleanupMutunDevelopmentPwaArtifacts().catch((error) => {
+        console.error("Unable to clear development PWA artifacts.", error);
+      });
+
+      return;
+    }
+
+    if (!("serviceWorker" in navigator)) {
       return;
     }
 

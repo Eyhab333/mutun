@@ -20,9 +20,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import {
+  adminNavigationItems,
   getVisibleNavigationItems,
   isNavigationItemActive,
-  secondaryNavigationItems,
+  primaryNavigationItems,
 } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -31,9 +32,12 @@ export function MobilePageMenu() {
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
   const { user } = useAuth();
-  const visibleSecondaryNavigationItems = getVisibleNavigationItems(
-    secondaryNavigationItems,
+  const visibleAdminNavigationItems = getVisibleNavigationItems(
+    adminNavigationItems,
     user
+  );
+  const additionalMobileNavigationItems = primaryNavigationItems.filter(
+    (item) => item.mobileVisible === false
   );
 
   return (
@@ -77,7 +81,28 @@ export function MobilePageMenu() {
         </SheetHeader>
 
         <div className="space-y-1 p-3">
-          {visibleSecondaryNavigationItems.map((item) => {
+          {additionalMobileNavigationItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = isNavigationItemActive(pathname, item.href);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  isActive && "bg-accent text-accent-foreground"
+                )}
+              >
+                <Icon className="size-4 text-muted-foreground" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+
+          {visibleAdminNavigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = isNavigationItemActive(pathname, item.href);
 

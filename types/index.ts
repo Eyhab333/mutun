@@ -4,6 +4,7 @@ import type { Timestamp } from "firebase/firestore";
 export type NavigationItem = {
   label: string;
   mobileLabel?: string;
+  mobileVisible?: boolean;
   href: "/" | `/${string}`;
   icon: LucideIcon;
   section: "main" | "secondary";
@@ -102,6 +103,66 @@ export type PassageResource = TimestampedDocument &
     storagePath?: string;
     order: number;
   };
+
+export type BookType = "PDF" | "TEXT";
+
+export type BookCollection = TimestampedDocument &
+  ContentStatus & {
+    id: string;
+    levelId: string;
+    scienceId: string;
+    title: string;
+    description?: string;
+    order: number;
+  };
+
+export type Book = TimestampedDocument &
+  ContentStatus & {
+    id: string;
+    levelId: string;
+    scienceId: string;
+    collectionId?: string;
+    title: string;
+    author?: string;
+    description?: string;
+    type: BookType;
+    pageCount: number;
+    pdfStoragePath?: string;
+    order: number;
+  };
+
+export type BookPage = TimestampedDocument & {
+  id: string;
+  bookId: string;
+  text: string;
+  order: number;
+};
+
+export type BookReadingCycleStatus = "IN_PROGRESS" | "COMPLETED";
+
+export type BookReadingCycle = TimestampedDocument & {
+  id: string;
+  userId: string;
+  bookId: string;
+  cycleNumber: number;
+  status: BookReadingCycleStatus;
+  currentPage: number;
+  readThroughPage: number;
+  startedAt: Timestamp;
+  lastReadAt: Timestamp;
+  completedAt?: Timestamp;
+};
+
+export type BookReadingDailyStat = TimestampedDocument & {
+  id: string;
+  userId: string;
+  bookId: string;
+  cycleId: string;
+  dateKey: string;
+  pagesRead: number;
+  firstPage?: number;
+  lastPage?: number;
+};
 
 export type UserPassageState = TimestampedDocument & {
   id: string;

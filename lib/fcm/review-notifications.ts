@@ -10,7 +10,10 @@ import {
   type MessagePayload,
 } from "firebase/messaging";
 
-import { registerMutunServiceWorker } from "@/components/pwa/service-worker-registration";
+import {
+  isMutunServiceWorkerEnabled,
+  registerMutunServiceWorker,
+} from "@/components/pwa/service-worker-registration";
 import {
   disableFcmInstallation,
   upsertFcmInstallation,
@@ -50,6 +53,7 @@ function getUserAgent() {
 
 export async function getReviewMessagingAvailability(): Promise<ReviewMessagingAvailability> {
   if (
+    !isMutunServiceWorkerEnabled() ||
     typeof window === "undefined" ||
     !("Notification" in window) ||
     !("serviceWorker" in navigator) ||

@@ -2,6 +2,7 @@ import {
   BookOpen,
   CalendarDays,
   Layers3,
+  LibraryBig,
   RotateCcw,
   ShieldCheck,
   Wrench,
@@ -26,6 +27,14 @@ export const navigationItems: readonly NavigationItem[] = [
     section: "main",
   },
   {
+    label: "قراءة الكتب",
+    mobileLabel: "الكتب",
+    mobileVisible: false,
+    href: "/books",
+    icon: LibraryBig,
+    section: "main",
+  },
+  {
     label: "المراجعة",
     href: "/review",
     icon: RotateCcw,
@@ -47,12 +56,14 @@ export const navigationItems: readonly NavigationItem[] = [
 ];
 
 export const primaryNavigationItems = navigationItems.filter(
-  (item) => item.section === "main"
+  (item) => item.section === "main" && !item.requiresAdmin
 );
 
-export const secondaryNavigationItems = navigationItems.filter(
-  (item) => item.section === "secondary"
+export const adminNavigationItems = navigationItems.filter(
+  (item) => item.requiresAdmin
 );
+
+export const secondaryNavigationItems = adminNavigationItems;
 
 export const applicationIcon = BookOpen;
 

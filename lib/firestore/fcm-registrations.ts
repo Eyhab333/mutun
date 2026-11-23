@@ -1,14 +1,9 @@
 import {
-  collection,
-  documentId,
   doc,
-  getDocs,
-  limit,
-  query,
+  getDoc,
   serverTimestamp,
   setDoc,
   updateDoc,
-  where,
 } from "firebase/firestore";
 
 import { auth, db } from "@/lib/firebase";
@@ -28,15 +23,6 @@ function getInstallationReference(userId: string, installationId: string) {
     userId,
     fcmInstallationsCollection,
     installationId
-  );
-}
-
-function getInstallationsCollection(userId: string) {
-  return collection(
-    db,
-    firestoreCollections.fcmRegistrations,
-    userId,
-    fcmInstallationsCollection
   );
 }
 
@@ -66,19 +52,6 @@ function logInstallationWrite(
   }
 }
 
-async function installationDocumentExists(userId: string, installationId: string) {
-  const snapshot = await getDocs(
-    query(
-      getInstallationsCollection(userId),
-      where("userId", "==", userId),
-      where(documentId(), "==", installationId),
-      limit(1)
-    )
-  );
-
-  return !snapshot.empty;
-}
-
 export async function upsertFcmInstallation({
   userId,
   installationId,
@@ -89,10 +62,7 @@ export async function upsertFcmInstallation({
     authenticatedUserId,
     installationId
   );
-  const exists = await installationDocumentExists(
-    authenticatedUserId,
-    installationId
-  );
+  const exists = (await getDoc(reference)).exists();
   const fields = [
     "userId",
     "installationId",
@@ -134,10 +104,7 @@ export async function disableFcmInstallation(
     authenticatedUserId,
     installationId
   );
-  const exists = await installationDocumentExists(
-    authenticatedUserId,
-    installationId
-  );
+  const exists = (await getDoc(reference)).exists();
 
   if (!exists) {
     return;

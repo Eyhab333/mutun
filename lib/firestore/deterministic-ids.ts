@@ -35,6 +35,22 @@ export function getAutomaticReviewGroupDocumentId(
   return `u-${encodeDocumentSegment(userId)}__p-${encodeDocumentSegment(passageId)}__review-auto`;
 }
 
+export function getBookReadingCycleDocumentId(
+  userId: string,
+  bookId: string,
+  cycleNumber: number
+) {
+  return `u-${encodeDocumentSegment(userId)}__b-${encodeDocumentSegment(bookId)}__c-${cycleNumber}`;
+}
+
+export function getBookReadingDailyStatDocumentId(
+  userId: string,
+  cycleId: string,
+  dateKey: string
+) {
+  return `u-${encodeDocumentSegment(userId)}__c-${encodeDocumentSegment(cycleId)}__d-${encodeDocumentSegment(dateKey)}`;
+}
+
 export function getSafeStorageSegment(value: string) {
   return encodeDocumentSegment(value);
 }
