@@ -4,47 +4,49 @@ import * as React from "react";
 import { toast } from "sonner";
 
 const UPDATE_TOAST_ID = "mutun-pwa-update";
-const MUTUN_CACHE_PREFIX = "mutun-";
 
-let developmentCleanupPromise: Promise<void> | null = null;
+let developmentCleanupPromise: Promise<boolean> | null = null;
 
 export function isMutunServiceWorkerEnabled() {
   return process.env.NODE_ENV === "production";
 }
 
-export function cleanupMutunDevelopmentPwaArtifacts() {
+export function cleanupMutunDevelopmentPwaArtifacts(): Promise<boolean> {
+  if (typeof window === "undefined") {
+    return Promise.resolve(false);
+  }
+
   if (developmentCleanupPromise) {
     return developmentCleanupPromise;
   }
 
   developmentCleanupPromise = (async () => {
+    let hadActiveWorker = false;
     const cleanupTasks: Promise<unknown>[] = [];
 
     if ("serviceWorker" in navigator) {
       cleanupTasks.push(
-        navigator.serviceWorker
-          .getRegistrations()
-          .then((registrations) =>
-            Promise.all(registrations.map((registration) => registration.unregister()))
-          )
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          if (registrations.length > 0) {
+            hadActiveWorker = true;
+          }
+          return Promise.all(
+            registrations.map((registration) => registration.unregister())
+          );
+        })
       );
     }
 
     if ("caches" in window) {
       cleanupTasks.push(
-        window.caches
-          .keys()
-          .then((keys) =>
-            Promise.all(
-              keys
-                .filter((key) => key.startsWith(MUTUN_CACHE_PREFIX))
-                .map((key) => window.caches.delete(key))
-            )
-          )
+        window.caches.keys().then((keys) =>
+          Promise.all(keys.map((key) => window.caches.delete(key)))
+        )
       );
     }
 
     await Promise.all(cleanupTasks);
+    return hadActiveWorker;
   })();
 
   return developmentCleanupPromise;
@@ -60,12 +62,10 @@ export async function registerMutunServiceWorker() {
     throw new Error("Service workers are disabled during development.");
   }
 
-  const registration = await navigator.serviceWorker.register("/sw.js", {
+  return navigator.serviceWorker.register("/sw.js", {
     scope: "/",
     updateViaCache: "none",
   });
-
-  return registration.active ? registration : navigator.serviceWorker.ready;
 }
 
 export function ServiceWorkerRegistration() {
@@ -73,10 +73,18 @@ export function ServiceWorkerRegistration() {
   const updateShownRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (process.env.NODE_ENV !== "production") {
-      void cleanupMutunDevelopmentPwaArtifacts().catch((error) => {
-        console.error("Unable to clear development PWA artifacts.", error);
-      });
+    if (!isMutunServiceWorkerEnabled()) {
+      void cleanupMutunDevelopmentPwaArtifacts()
+        .then((hadActiveWorker) => {
+          // إذا كان هناك Service Worker قديم عالق من جلسة سابقة، أعد التحميل مرة واحدة لتحرير الصفحة
+          if (hadActiveWorker && !sessionStorage.getItem("pwa-dev-cleaned")) {
+            sessionStorage.setItem("pwa-dev-cleaned", "true");
+            window.location.reload();
+          }
+        })
+        .catch((error) => {
+          console.error("Unable to clear development PWA artifacts.", error);
+        });
 
       return;
     }
@@ -135,8 +143,10 @@ export function ServiceWorkerRegistration() {
           return;
         }
 
+        // فحص التحديثات المعلقة فوراً
         promptForUpdate();
 
+        // الاستماع لأي تحديث جديد يبدأ التثبيت
         registration.addEventListener("updatefound", () => {
           const installingWorker = registration?.installing;
 
@@ -151,9 +161,7 @@ export function ServiceWorkerRegistration() {
           });
         });
       } catch (error) {
-        if (process.env.NODE_ENV === "development") {
-          console.error("Service worker registration failed.", error);
-        }
+        console.error("Service worker registration failed.", error);
       }
     }
 
